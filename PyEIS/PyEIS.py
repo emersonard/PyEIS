@@ -177,6 +177,10 @@ def cir_RsRQ(w, Rs='none', R='none', Q='none', n='none', fs='none'):
         n = np.log(Q*R)/np.log(1/(2*np.pi*fs))
     return Rs + (R/(1+R*Q*(w*1j)**n))
 
+def cir_CoatedMetal(w, Rs='none', Q='none', n='none', Rcoat='none', Qdl='none', ndl='none', Rcorr='none', fs='none'):
+    '''funcstring placeholder'''
+    return Rs + ((Rcoat+Rcorr+(w*1j)**(ndl)*Qdl*Rcoat*Rcorr)/(1+(w*1j)**(n)*Q*(Rcoat+Rcorr)+(w*1j)**(ndl)*Qdl*Rcorr+(w*1j)**(n+ndl)*Q*Qdl*Rcoat*Rcorr)) 
+
 def cir_RC(w, C='none', R='none', fs='none'):
     '''
     Simulation Function: -RC-
@@ -1198,6 +1202,53 @@ def cir_RsRQ_fit(params, w):
     Rs = params['Rs']
     return Rs + (R/(1+R*Q*(w*1j)**n))
 
+def cir_CoatedMetal_fit(params, w):
+    '''funcstring placeholder '''
+
+    if str(params.keys())[10:].find("Rcoat") == -1: #if Rcoat == 'none':
+        Q = params['Q']
+        n = params['n']
+        fs = params['fs']
+        Rcoat = (1/(Q*(2*np.pi*fs)**n))
+    if str(params.keys())[10:].find("Q") == -1: #elif Q == 'none':
+        Rcoat = params['Rcoat']
+        n = params['n']
+        fs = params['fs']
+        Q = (1/(Rcoat*(2*np.pi*fs)**n))
+    if str(params.keys())[10:].find("n") == -1: #elif n == 'none':
+        Rcoat = params['Rcoat']
+        Q = params['Q']
+        fs = params['fs']
+        n = np.log(Q*Rcoat)/np.log(1/(2*np.pi*fs))
+    if str(params.keys())[10:].find("fs") == -1: #elif fs == 'none':
+        Rcoat = params['Rcoat']
+        Q = params['Q']
+        n = params['n']
+
+    if str(params.keys())[10:].find("Rcorr") == -1: #if Rcorr == 'none':
+        Qdl = params['Qdl']
+        ndl = params['ndl']
+        fs2 = params['fs2']
+        Rcorr = (1/(Qdl*(2*np.pi*fs2)**ndl))
+    if str(params.keys())[10:].find("Qdl") == -1: #elif Qdl == 'none':
+        Rcorr = params['Rcorr']
+        ndl = params['ndl']
+        fs2 = params['fs2']
+        Qdl = (1/(Rcorr*(2*np.pi*fs2)**ndl))
+    if str(params.keys())[10:].find("ndl") == -1: #elif ndl == 'none':
+        Rcorr = params['Rcorr']
+        Qdl = params['Qdl']
+        fs2 = params['fs2']
+        ndl = np.log(Qdl*Rcorr)/np.log(1/(2*np.pi*fs2))
+    if str(params.keys())[10:].find("fs2") == -1: #elif fs2 == 'none':
+        Rcorr = params['Rcorr']
+        Qdl = params['Qdl']
+        ndl = params['ndl']
+
+    Rs = params['Rs']
+    return Rs + ((Rcoat+Rcorr+(w*1j)**(ndl)*Qdl*Rcoat*Rcorr)/(1+(w*1j)**(n)*Q*(Rcoat+Rcorr)+(w*1j)**(ndl)*Qdl*Rcorr+(w*1j)**(n+ndl)*Q*Qdl*Rcoat*Rcorr))
+
+
 def cir_RsRQRQ_fit(params, w):
     '''
     Fit Function: -Rs-RQ-RQ-
@@ -2124,6 +2175,9 @@ def leastsq_errorfunc(params, w, re, im, circuit, weight_func):
     elif circuit == 'R-RQ':
         re_fit = cir_RsRQ_fit(params, w).real
         im_fit = -cir_RsRQ_fit(params, w).imag
+    elif circuit == 'CoatedMetal':
+        re_fit = cir_CoatedMetal_fit(params, w).real
+        im_fit = -cir_CoatedMetal_fit(params, w).imag
     elif circuit == 'R-RQ-RQ':
         re_fit = cir_RsRQRQ_fit(params, w).real
         im_fit = -cir_RsRQRQ_fit(params, w).imag
@@ -4105,6 +4159,24 @@ class EIS_exp:
                     self.fit_R.append(self.Fit[i].params.get('R').value)
                     self.fit_n.append(self.Fit[i].params.get('n').value)
                     self.fit_Q.append(self.Fit[i].params.get('Q').value)
+        elif circuit == 'CoatedMetal':
+            self.fit_Rs = []
+            self.fit_Q = []
+            self.fit_n = []
+            self.fit_Rcoat = []
+            self.fit_Qdl = []
+            self.fit_ndl = []
+            self.fit_Rcorr = []
+            for i in range(len(self.df)):
+                self.circuit_fit.append(cir_CoatedMetal(w=self.df[i].w, Rs=self.Fit[i].params.get('Rs').value, Rcoat=self.Fit[i].params.get('Rcoat').value, Q=self.Fit[i].params.get('Q').value, n=self.Fit[i].params.get('n').value, Qdl=self.Fit[i].params.get('Qdl').value, ndl=self.Fit[i].params.get('ndl').value, Rcorr=self.Fit[i].params.get('Rcorr').value, fs='none'))
+                self.fit_Rs.append(self.Fit[i].params.get('Rs').value)
+                self.fit_Rcoat.append(self.Fit[i].params.get('Rcoat').value)
+                self.fit_n.append(self.Fit[i].params.get('n').value)
+                self.fit_Q.append(self.Fit[i].params.get('Q').value)
+                self.fit_Rcorr.append(self.Fit[i].params.get('Rcorr').value)
+                self.fit_ndl.append(self.Fit[i].params.get('ndl').value)
+                self.fit_Qdl.append(self.Fit[i].params.get('Qdl').value)
+
         elif circuit == 'R-RQ-RQ':
             self.fit_Rs = []
             self.fit_R = []
